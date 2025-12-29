@@ -44,7 +44,7 @@ def main():
         prog="AIE Matrix Multiplication MLIR Design (Whole Array)",
         description="Emits MLIR code for a matrix multiplication design of the given input size",
     )
-    argparser.add_argument("--dev", type=str, choices=["npu", "npu2"], default="npu2")
+    argparser.add_argument("--dev", type=str, choices=["npu", "npu2"], default="npu")
     argparser.add_argument("-M", type=int, default=512)
     argparser.add_argument("-K", type=int, default=512)
     argparser.add_argument("-N", type=int, default=512)

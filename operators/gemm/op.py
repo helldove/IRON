@@ -172,7 +172,7 @@ class AIEGEMM(AIEOperatorBase):
                             extra_flags=kernel_flags,
                             depends=[
                                 SourceArtifact.new(
-                                    base_dir / "aie_kernels" / "aie2p" / "mm.cc"
+                                    base_dir / "aie_kernels" / "aie2" / "mm.cc"
                                 )
                             ],
                         ),

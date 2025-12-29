@@ -909,11 +909,12 @@ extern "C" {
         zero_scalar<ctype_out, DIM_M, DIM_N>(c_out);                                                                   \
     }
 
-#ifndef SCALAR_ONLY
-combos(matmul_vectorized_c_func) combos(zero_vectorized_c_func)
-#endif
-#ifndef VECTORIZED_ONLY
-    combos(matmul_scalar_c_func) combos(zero_scalar_c_func)
-#endif
+// #ifndef SCALAR_ONLY
+// combos(matmul_vectorized_c_func) combos(zero_vectorized_c_func)
+// #endif
+// #ifndef VECTORIZED_ONLY
+//     combos(matmul_scalar_c_func) combos(zero_scalar_c_func)
+// #endif
+combos(matmul_vectorized_c_func) combos(matmul_scalar_c_func) combos(zero_vectorized_c_func) combos(zero_scalar_c_func)
 
 } // extern "C"

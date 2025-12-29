@@ -55,11 +55,11 @@ class AIEMHA(AIEOperatorBase):
         file_name_base = f"mha_{self.num_heads}h_{kv_heads}kv_{self.seq_len}s_{self.d}d"
 
         # Define source files
-        mm_source = str(self.context.base_dir / "aie_kernels" / "aie2p" / "mm.cc")
+        mm_source = str(self.context.base_dir / "aie_kernels" / "aie2" / "mm.cc")
         softmax_source = str(
-            self.context.base_dir / "aie_kernels" / "aie2p" / "softmax.cc"
+            self.context.base_dir / "aie_kernels" / "aie2" / "softmax.cc"
         )
-        mha_source = str(self.context.base_dir / "aie_kernels" / "aie2p" / "mha.cc")
+        mha_source = str(self.context.base_dir / "aie_kernels" / "aie2" / "mha.cc")
         passthrough_source = str(
             self.context.base_dir / "aie_kernels" / "generic" / "passThrough.cc"
         )
