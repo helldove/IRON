@@ -467,7 +467,8 @@ class PeanoCompilationRule(CompilationRule):
                     str(clang_path),
                     "-O2",
                     "-std=c++20",
-                    "--target=aie2p-none-unknown-elf",
+                    # "--target=aie2p-none-unknown-elf",
+                    "--target=aie2-none-unknown-elf",
                     "-Wno-parentheses",
                     "-Wno-attributes",
                     "-Wno-macro-redefined",
@@ -495,7 +496,7 @@ class PeanoCompilationRule(CompilationRule):
         return artifacts
 
     def _rename_symbols(self, artifact):
-        objcopy_path = "llvm-objcopy-18"
+        objcopy_path = "llvm-objcopy"
         cmd = [
             objcopy_path,
         ]
