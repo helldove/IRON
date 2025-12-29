@@ -11,6 +11,7 @@ from operators.common import (
     AIEOperatorConstraintError,
     XclbinArtifact,
     InstsBinArtifact,
+    KernelArchiveArtifact,
     KernelObjectArtifact,
     SourceArtifact,
     PythonGeneratedMLIRArtifact,
@@ -60,19 +61,39 @@ class AIETanh(AIEOperatorBase):
             f"{file_name_base}.xclbin",
             depends=[
                 mlir_artifact,
-                KernelObjectArtifact.new(
-                    f"tanh.o",
+                KernelArchiveArtifact.new(
+                    f"tanh.a",
                     depends=[
-                        SourceArtifact.new(
-                            self.context.base_dir / "aie_kernels" / "aie2p" / "tanh.cc"
-                        )
+                        KernelObjectArtifact.new(
+                            f"lut_based_ops.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "lut_based_ops.cpp"
+                                )
+                            ],
+                        ),
+                        KernelObjectArtifact.new(
+                            f"tanh.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "tanh.cc"
+                                )
+                            ],
+                        ),
                     ],
                 ),
             ],
+            extra_flags=["--dynamic-objFifos"],
         )
 
         insts_artifact = InstsBinArtifact.new(
-            f"{file_name_base}.bin", depends=[mlir_artifact]
+            f"{file_name_base}.bin", depends=[mlir_artifact], extra_flags=["--dynamic-objFifos"]
         )
 
         self.xclbin_artifact = xclbin_artifact

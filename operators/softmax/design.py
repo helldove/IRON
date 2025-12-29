@@ -43,7 +43,7 @@ def softmax(dev, num_elements, num_columns, num_channels, trace_size, tile_size)
     ]
 
     # AIE Core Function declaration
-    softmax_kernel = Kernel("softmax_bf16", "softmax.o", [tile_ty, tile_ty, np.int32])
+    softmax_kernel = Kernel("softmax_bf16", "softmax.a", [tile_ty, tile_ty, np.int32])
 
     # Define a task that will run on a compute tile
     def core_body(of_in1, of_out, softmax_kernel):

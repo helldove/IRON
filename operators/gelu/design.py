@@ -45,7 +45,7 @@ def my_gelu(dev, size, num_columns, num_channels, tile_size, trace_size):
     # External, binary kernel definition
     gelu_fcn = Kernel(
         "gelu_bf16",
-        "gelu.o",
+        "gelu.a",
         [line_type, line_type, np.int32],
     )
 

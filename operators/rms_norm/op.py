@@ -90,7 +90,7 @@ class AIERMSNorm(AIEOperatorBase):
                                 SourceArtifact.new(
                                     self.context.base_dir
                                     / "aie_kernels"
-                                    / "aie2p"
+                                    / "aie2"
                                     / "rms_norm.cc"
                                 )
                             ],

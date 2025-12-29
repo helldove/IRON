@@ -70,7 +70,7 @@ class AIELeakyReLU(AIEOperatorBase):
                         SourceArtifact.new(
                             self.context.base_dir
                             / "aie_kernels"
-                            / "aie2p"
+                            / "aie2"
                             / "leaky_relu.cc"
                         )
                     ],

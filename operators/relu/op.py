@@ -63,7 +63,7 @@ class AIEReLU(AIEOperatorBase):
                     f"relu.o",
                     depends=[
                         SourceArtifact.new(
-                            self.context.base_dir / "aie_kernels" / "aie2p" / "relu.cc"
+                            self.context.base_dir / "aie_kernels" / "aie2" / "relu.cc"
                         )
                     ],
                 ),

@@ -68,7 +68,7 @@ class AIELayerNorm(AIEOperatorBase):
                         SourceArtifact.new(
                             self.context.base_dir
                             / "aie_kernels"
-                            / "aie2p"
+                            / "aie2"
                             / "layer_norm.cc"
                         )
                     ],

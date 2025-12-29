@@ -59,22 +59,39 @@ class AIESoftmax(AIEOperatorBase):
             f"{file_name_base}.xclbin",
             depends=[
                 mlir_artifact,
-                KernelObjectArtifact.new(
-                    f"softmax.o",
+                KernelArchiveArtifact.new(
+                    f"softmax.a",
                     depends=[
-                        SourceArtifact.new(
-                            self.context.base_dir
-                            / "aie_kernels"
-                            / "aie2p"
-                            / "softmax.cc"
-                        )
+                        KernelObjectArtifact.new(
+                            f"lut_based_ops.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "lut_based_ops.cpp"
+                                )
+                            ],
+                        ),
+                        KernelObjectArtifact.new(
+                            f"softmax.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "softmax.cc"
+                                )
+                            ],
+                        ),
                     ],
                 ),
             ],
+            extra_flags=["--dynamic-objFifos"],
         )
 
         insts_artifact = InstsBinArtifact.new(
-            f"gemm_{file_name_base}.bin", depends=[mlir_artifact]
+            f"gemm_{file_name_base}.bin", depends=[mlir_artifact], extra_flags=["--dynamic-objFifos"]
         )
 
         self.xclbin_artifact = xclbin_artifact

@@ -63,19 +63,39 @@ class AIESiLU(AIEOperatorBase):
             f"{file_name_base}.xclbin",
             depends=[
                 mlir_artifact,
-                KernelObjectArtifact.new(
-                    f"silu.o",
+                KernelArchiveArtifact.new(
+                    f"silu.a",
                     depends=[
-                        SourceArtifact.new(
-                            self.context.base_dir / "aie_kernels" / "aie2p" / "silu.cc"
-                        )
+                        KernelObjectArtifact.new(
+                            f"lut_based_ops.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "lut_based_ops.cpp"
+                                )
+                            ],
+                        ),
+                        KernelObjectArtifact.new(
+                            f"silu.o",
+                            depends=[
+                                SourceArtifact.new(
+                                    self.context.base_dir
+                                    / "aie_kernels"
+                                    / "aie2"
+                                    / "silu.cc"
+                                )
+                            ],
+                        ),
                     ],
                 ),
             ],
+            extra_flags=["--dynamic-objFifos"],
         )
 
         insts_artifact = InstsBinArtifact.new(
-            f"{file_name_base}.bin", depends=[mlir_artifact]
+            f"{file_name_base}.bin", depends=[mlir_artifact], extra_flags=["--dynamic-objFifos"]
         )
 
         return xclbin_artifact, insts_artifact
