@@ -14,7 +14,7 @@ from operators.common.test_utils import run_test
 
 
 def generate_test_params(extensive=False):
-    max_aie_columns = 8
+    max_aie_columns = 4
     num_channels = 2
     input_lengths = [2048] if not extensive else [1024, 2048, 4096, 8192]
     scalar_factors = [3.0] if not extensive else [3.0, 10.0]
