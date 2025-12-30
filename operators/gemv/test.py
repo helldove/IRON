@@ -22,8 +22,8 @@ def generate_test_params(extensive=False):
         (8192, 2048, 2, 4),
         (2048, 8192, 4, 1),
         (8192, 2048, 4, 4),
-        (2048, 8192, 8, 1),
-        (8192, 2048, 8, 4),
+        # (2048, 8192, 8, 1),
+        # (8192, 2048, 8, 4),
     ]
     names = [
         f"matrix_vector_mul_{M}x{K}_{tile_size}_{num_aie_columns}col"

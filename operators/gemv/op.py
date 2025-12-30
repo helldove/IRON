@@ -65,7 +65,7 @@ class AIEGEMV(AIEOperatorBase):
             import_path=operator_dir / "design.py",
             callback_fn="my_matvec",
             callback_args=[
-                self.context.device_manager.device_type,
+                self.context.device_manager.device_str(),
                 self.num_aie_columns,
                 self.M,
                 self.K,
@@ -81,7 +81,9 @@ class AIEGEMV(AIEOperatorBase):
                     f"mv.o",
                     depends=[
                         SourceArtifact.new(
-                            self.context.base_dir / "aie_kernels" / "generic" / "mv.cc"
+                            self.context.base_dir
+                            / "aie_kernels" / "generic"
+                            / "mv.cc"
                         )
                     ],
                 ),

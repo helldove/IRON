@@ -29,6 +29,9 @@ microkernel_mac_dim_map = {
     "npu": {
         "bf16": (4, 8, 4),
     },
+    "npu1": {
+        "bf16": (4, 8, 4),
+    },
     "npu2": {
         "bf16": {
             # emulate_bf16_mmul_with_bfp16
@@ -44,7 +47,7 @@ def main():
         prog="AIE Matrix Multiplication MLIR Design (Whole Array)",
         description="Emits MLIR code for a matrix multiplication design of the given input size",
     )
-    argparser.add_argument("--dev", type=str, choices=["npu", "npu2"], default="npu")
+    argparser.add_argument("--dev", type=str, choices=["npu", "npu1", "npu2"], default="npu")
     argparser.add_argument("-M", type=int, default=512)
     argparser.add_argument("-K", type=int, default=512)
     argparser.add_argument("-N", type=int, default=512)
@@ -195,8 +198,9 @@ def my_matmul(
         r, s, t = mac_dims
 
     # npu is a 4 row x 4 col array
-    if dev == "npu" and n_aie_cols > 4:
-        raise AssertionError("Invalid configuration: NPU (Phoenix/Hawk) has 4 columns")
+    if dev == "npu" or dev == "npu1":
+        if n_aie_cols > 4:
+            raise AssertionError("Invalid configuration: NPU (Phoenix/Hawk) has 4 columns")
     # npu2 is a 4 row x 8 col array
     if dev == "npu2" and n_aie_cols > 8:
         raise AssertionError(
@@ -243,15 +247,17 @@ def my_matmul(
     # a big performance cost.
     fifo_depth = 2
 
-    if dev == "npu":
+    if dev == "npu" or dev == "npu1":
         if n_aie_cols == 1:
             dev_ty = NPU1Col1()
         elif n_aie_cols == 2:
             dev_ty = NPU1Col2()
         elif n_aie_cols == 4:
             dev_ty = NPU1()
-    else:
+    elif dev == "npu2":
         dev_ty = NPU2()
+    else:
+        raise ValueError(f"Device name {dev} is unknown.")
 
     # These will hold TensorAccessPattern objects that represent the runtime
     # npu_dma_memcpy_nd operations of this design. They are only used if generate_taps is true

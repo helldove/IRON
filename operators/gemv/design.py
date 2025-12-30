@@ -28,10 +28,12 @@ def my_matvec(dev, cols, M, K, m):
 
     assert M % cols == 0
 
-    if dev == "npu":
+    if dev == "npu" or dev == "npu1":
         dev_ty = NPU1()
-    else:
+    elif dev == "npu2":
         dev_ty = NPU2()
+    else:
+        raise ValueError(f"Device name {dev} is unknown.")
 
     L1_A_ty = np.ndarray[(m * K,), dtype_in]
     L1_B_ty = np.ndarray[(K,), dtype_in]
@@ -117,7 +119,7 @@ def main():
     argparser = argparse.ArgumentParser(
         prog="AIE Matrix Vector Multiplication MLIR Design",
     )
-    argparser.add_argument("--dev", type=str, choices=["npu", "npu2"], default="npu")
+    argparser.add_argument("--dev", type=str, choices=["npu", "npu1", "npu2"], default="npu")
     argparser.add_argument("-M", type=int)
     argparser.add_argument("-K", type=int)
     argparser.add_argument("-m", type=int)

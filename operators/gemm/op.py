@@ -33,7 +33,7 @@ class AIEGEMM(AIEOperatorBase):
         tile_m=64,
         tile_k=64,
         tile_n=64,
-        num_aie_columns=8,
+        num_aie_columns=4,
         context=None,
         **gemm_kwargs,
     ):
@@ -77,6 +77,7 @@ class AIEGEMM(AIEOperatorBase):
         num_aie_columns = self.num_aie_columns
         base_dir = self.context.base_dir
         device_str = self.context.device_manager.device_str()
+        isNpu2 = False
 
         b_col_maj = self.gemm_args.get("b_col_maj", False)
         c_col_maj = self.gemm_args.get("c_col_maj", False)
@@ -89,10 +90,15 @@ class AIEGEMM(AIEOperatorBase):
         use_scalar = self.gemm_args.get("use_scalar", False)
         round_conv_even = self.gemm_args.get("round_conv_even", True)
 
-        if emulate_bf16_mmul_with_bfp16:
-            min_tile_m, min_tile_k, min_tile_n = 8, 8, 8
+        
+        if device_str == "npu" or device_str == "npu1":
+            min_tile_m, min_tile_k, min_tile_n = 4, 8, 4
         else:
-            min_tile_m, min_tile_k, min_tile_n = 4, 8, 8
+            isNpu2 = True
+            if emulate_bf16_mmul_with_bfp16:
+                min_tile_m, min_tile_k, min_tile_n = 8, 8, 8
+            else:
+                min_tile_m, min_tile_k, min_tile_n = 4, 8, 8
         assert tile_m >= min_tile_m, f"tile_m ({tile_m}) must be >= {min_tile_m}"
         assert tile_k >= min_tile_k, f"tile_k ({tile_k}) must be >= {min_tile_k}"
         assert tile_n >= min_tile_n, f"tile_n ({tile_n}) must be >= {min_tile_n}"
@@ -114,7 +120,7 @@ class AIEGEMM(AIEOperatorBase):
             kernel_flags.append("-Dbf16_bf16_ONLY")
         if round_conv_even:
             kernel_flags.append("-DROUND_CONV_EVEN")
-        if emulate_bf16_mmul_with_bfp16:
+        if isNpu2 and emulate_bf16_mmul_with_bfp16:
             kernel_flags.append("-DAIE_API_EMULATE_BFLOAT16_MMUL_WITH_BFP16")
         if b_col_maj:
             kernel_flags.append("-DB_COL_MAJ")
