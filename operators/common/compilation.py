@@ -402,7 +402,9 @@ class AieccCompilationRule(CompilationRule):
                 )
                 if result.returncode == 0:
                     logging.debug(
-                        f"Successfully compiled {mlir_source.path} to {', '.join([str(first_xclbin.path)] if do_compile_xclbin else [] + [str(first_insts_bin.path)] if do_compile_insts_bin else [])}"
+                        f"Successfully compiled {mlir_source.path} to \
+                        {', '.join([str(first_xclbin.path)] if do_compile_xclbin else [] \
+                        + [str(first_insts_bin.path)] if do_compile_insts_bin else [])}"
                     )
                 else:
                     raise RuntimeError(
@@ -467,7 +469,6 @@ class PeanoCompilationRule(CompilationRule):
                     str(clang_path),
                     "-O2",
                     "-std=c++20",
-                    # "--target=aie2p-none-unknown-elf",
                     "--target=aie2-none-unknown-elf",
                     "-Wno-parentheses",
                     "-Wno-attributes",
