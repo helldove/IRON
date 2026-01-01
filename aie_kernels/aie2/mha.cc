@@ -12,6 +12,11 @@
 
 #define ROUNDING_MODE aie::rounding_mode::conv_even
 
+
+static v16bfloat16 CalcExpBf16(v16bfloat16 x) {
+  return to_v16bfloat16(getExpBf16Lut(x));
+}
+
 extern "C" {
 void matmul_scalar_bf16_bf16(bfloat16 *a_in, bfloat16 *b_in, bfloat16 *c_out);
 void matmul_bf16_bf16(bfloat16 *a_in, bfloat16 *b_in, bfloat16 *c_out);
@@ -148,16 +153,12 @@ void partial_softmax(bfloat16 *A,
 
     // Compute valid extents within this block for padded tails
     int32_t valid_q_rows = S_q_eff - q_block_idx * B_q;
-    if (valid_q_rows < 0)
-        valid_q_rows = 0;
-    if (valid_q_rows > B_q)
-        valid_q_rows = B_q;
+    if (valid_q_rows < 0) valid_q_rows = 0;
+    if (valid_q_rows > B_q) valid_q_rows = B_q;
 
     int32_t valid_kv_cols = S_kv_eff - kv_block_idx * B_kv;
-    if (valid_kv_cols < 0)
-        valid_kv_cols = 0;
-    if (valid_kv_cols > B_kv)
-        valid_kv_cols = B_kv;
+    if (valid_kv_cols < 0) valid_kv_cols = 0;
+    if (valid_kv_cols > B_kv) valid_kv_cols = B_kv;
 
     // Fully padded block: contributes nothing
     if (valid_q_rows == 0 || valid_kv_cols == 0) {
@@ -242,13 +243,8 @@ void partial_softmax(bfloat16 *A,
         Vec64bf16 l_i_minus_1 = aie::load_v<VECTOR_LENGTH>(scale_buffer + 2 * B_q + i);
         Vec64bf16 accum_exp_val = aie::load_v<VECTOR_LENGTH>(scale_buffer + 3 * B_q + i);
 
-        // aie::accum<accfloat, VECTOR_LENGTH> l_i_accum = aie::zeros<accfloat, VECTOR_LENGTH>();
-
         aie::accum<accfloat, VECTOR_LENGTH> diff = aie::accum<accfloat, VECTOR_LENGTH>(aie::sub(m_i_minus_1, m_i));
-        // l_i_accum = aie::exp2<bfloat16>(diff.to_vector<float>());
-        // l_i_accum = to_v16bfloat16(getExpBf16(diff.to_vector<bfloat16>()));
-        // Vec64bf16 max_diff_exp = l_i_accum.to_vector<bfloat16>();
-        Vec64bf16 max_diff_exp = to_v16bfloat16(getExpBf16(diff.to_vector<bfloat16>()));
+        Vec64bf16 max_diff_exp = to_v16bfloat16(getExpBf16Lut(diff.to_vector<bfloat16>()));
 
         aie::store_v(scale_buffer + 3 * B_q + i, max_diff_exp);
         aie::accum<accfloat, VECTOR_LENGTH> l_i = aie::add(aie::mul(max_diff_exp, l_i_minus_1), accum_exp_val);

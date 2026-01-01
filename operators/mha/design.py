@@ -21,7 +21,7 @@ from aie.iron import (
     WorkerRuntimeBarrier,
 )
 from aie.iron.placers import SequentialPlacer
-from aie.iron.device import NPU1Col1, NPU2, Tile
+from aie.iron.device import NPU1Col1, NPU1, NPU2, Tile
 from aie.iron.controlflow import range_
 from aie.helpers.taplib import TensorTiler2D, TensorAccessSequence, TensorAccessPattern
 from aie.helpers.dialects.ext.scf import if_, else_
@@ -35,6 +35,9 @@ dtype_map = {
 
 microkernel_mac_dim_map = {
     "npu": {
+        "bf16": (4, 8, 4),
+    },
+    "npu1": {
         "bf16": (4, 8, 4),
     },
     "npu2": {
@@ -104,6 +107,7 @@ def main():
 
 
 def fused_mha(
+    dev: str,
     heads: int,
     S_q: int,
     S_kv: int,
@@ -121,7 +125,7 @@ def fused_mha(
     vectorized = True
     enable_tracing = True if trace_size > 0 else False
     dtype_str = "bf16"
-    dev = "npu2"
+    num_col = 4
 
     if number_of_pipelines > 6:
         number_of_pipelines_join_distribute = number_of_pipelines // 2
@@ -145,10 +149,24 @@ def fused_mha(
         num_KV_heads = heads
 
     emulate_bf16_mmul_with_bfp16 = True
+    dev_ty = None
+    
+    if dev == "npu":
+        dev_ty = NPU1Col1()
+    elif dev == "npu1":
+        dev_ty = NPU1()
+    elif dev == "npu2":
+        num_col = 8
+        dev_ty = NPU2()
+    else:
+        raise ValueError(f"Device name {dev} is unknown.")
 
     # r, s, t are the dimensions required by the microkernel MAC instructions.
     mac_dims = microkernel_mac_dim_map[dev][dtype_str]
-    r, s, t = mac_dims[emulate_bf16_mmul_with_bfp16]
+    if dev == "npu" or dev == "npu1":
+        r, s, t = mac_dims
+    elif dev == "npu2":
+        r, s, t = mac_dims[emulate_bf16_mmul_with_bfp16]
 
     if verbose:
         print(f"Device: {dev}")
@@ -255,6 +273,12 @@ def fused_mha(
         [qk_ty, s_ty, np.int32, np.ndarray[(2,), np.dtype[np.int32]]],
     )
 
+    def CalcColRow(col, row, num_col):
+        index = row * 8 + col
+        recalc_col = index // num_col
+        recalc_row = int(index / num_col)
+        return recalc_col, recalc_row
+
     # AIE-array data movement with object fifos
     q_dims = None
     if vectorized:
@@ -264,26 +288,30 @@ def fused_mha(
         np.ndarray[(number_of_pipelines_join_distribute * B_q, d), np.dtype[dtype]],
         name="inQ",
     )
+    memQCol, memQRow = CalcColRow(6, 1, num_col)
     memQ = inQ.cons().split(
         offsets=[B_q * d * i for i in range(number_of_pipelines_join_distribute)],
         obj_types=[q_ty] * number_of_pipelines_join_distribute,
         names=[f"memQ{i}" for i in range(number_of_pipelines_join_distribute)],
         dims_to_stream=[q_dims] * number_of_pipelines_join_distribute,
         depths=[of_depth] * number_of_pipelines_join_distribute,
-        placement=Tile(col=6, row=1),
+        # placement=Tile(col=6, row=1),
+        placement=Tile(col=memQCol, row=memQRow),
     )  # Split between N pipelines
     if number_of_pipelines > 6:
         inQ2 = ObjectFifo(
             np.ndarray[(number_of_pipelines_join_distribute * B_q, d), np.dtype[dtype]],
             name="inQ2",
         )
+        memQCol, memQRow = CalcColRow(7, 1, num_col)
         memQ += inQ2.cons().split(
             offsets=[B_q * d * i for i in range(number_of_pipelines_join_distribute)],
             obj_types=[q_ty] * number_of_pipelines_join_distribute,
             names=[f"memQ2{i}" for i in range(number_of_pipelines_join_distribute)],
             dims_to_stream=[q_dims] * number_of_pipelines_join_distribute,
             depths=[of_depth] * number_of_pipelines_join_distribute,
-            placement=Tile(col=7, row=1),
+            # placement=Tile(col=7, row=1),
+            placement=Tile(col=memQCol, row=memQRow),
         )  # Split between N pipelines
 
     # VJUNG: The SequentialPlacer will place all of these on the same MemTile if Placement is specified. We would need a list of placement in case of one-many or many-one.
@@ -298,10 +326,12 @@ def fused_mha(
         name="inK",
         depth=of_depth,
     )
+    memKCol, memKRow = CalcColRow(3, 1, num_col)
     memK = inK.cons().forward(
         name="memK",
         dims_to_stream=k_dims,
-        placement=Tile(col=3, row=1),
+        # placement=Tile(col=3, row=1),
+        placement=Tile(col=memKCol, row=memKRow),
         depth=of_depth,
     )  # Broadcast, give this handle to N pipelines
 
@@ -314,10 +344,12 @@ def fused_mha(
         name="inV",
         depth=of_depth,
     )
+    memVCol, memVRow = CalcColRow(4, 1, num_col)
     memV = inV.cons().forward(
         name="memV",
         dims_to_stream=v_dims,
-        placement=Tile(col=4, row=1),
+        # placement=Tile(col=4, row=1),
+        placement=Tile(col=memVCol, row=memVRow),
         depth=of_depth,
     )  # Broadcast, give this handle to N pipelines
 
@@ -369,12 +401,14 @@ def fused_mha(
         name="memO",
         dims_to_stream=o_dims,
     )
+    outOCol, outORow = CalcColRow(6, 1, num_col)
     outO = memO.prod().join(
         offsets=[B_q * d * i for i in range(number_of_pipelines_join_distribute)],
         obj_types=[q_ty] * number_of_pipelines_join_distribute,
         names=[f"outO{i}" for i in range(number_of_pipelines_join_distribute)],
         depths=[of_depth] * number_of_pipelines_join_distribute,
-        placement=Tile(col=6, row=1),
+        # placement=Tile(col=6, row=1),
+        placement=Tile(col=outOCol, row=outORow),
     )  # Join onto the output OF
     if number_of_pipelines > 6:
         memO2 = ObjectFifo(
@@ -382,12 +416,14 @@ def fused_mha(
             name="memO2",
             dims_to_stream=o_dims,
         )
+        outOCol, outORow = CalcColRow(7, 1, num_col)
         outO += memO2.prod().join(
             offsets=[B_q * d * i for i in range(number_of_pipelines_join_distribute)],
             obj_types=[q_ty] * number_of_pipelines_join_distribute,
             names=[f"outO2{i}" for i in range(number_of_pipelines_join_distribute)],
             depths=[of_depth] * number_of_pipelines_join_distribute,
-            placement=Tile(col=7, row=1),
+            # placement=Tile(col=7, row=1),
+            placement=Tile(col=outOCol, row=outORow),
         )
 
     def batched_matmul_qk(
@@ -632,6 +668,7 @@ def fused_mha(
             initial_value=np.zeros(shape=(2,), dtype=np.int32),
             name=f"idx_buffer_qk_{i}",
         )
+        matmulCol, matmulRow = CalcColRow(i, 2, num_col)
         matmul_workers.append(
             Worker(
                 batched_matmul_qk,
@@ -647,7 +684,8 @@ def fused_mha(
                     idx_buffer_qk,
                 ],
                 stack_size=0xD00,
-                placement=Tile(col=i, row=2),
+                # placement=Tile(col=i, row=2),
+                placement=Tile(col=matmulCol, row=matmulRow),
                 while_true=False,
             )
         )
@@ -659,6 +697,7 @@ def fused_mha(
             initial_value=np.zeros(shape=(4 * B_q,), dtype=dtype),
             name=f"scale_buffer_softmax_{i}",
         )
+        softmaxCol, softmaxRow = CalcColRow(i, 3, num_col)
         softmax_workers.append(
             Worker(
                 softmax,
@@ -676,7 +715,8 @@ def fused_mha(
                     scale_buffer_softmax,
                 ],
                 stack_size=0xD00,
-                placement=Tile(col=i, row=3),
+                # placement=Tile(col=i, row=3),
+                placement=Tile(col=softmaxCol, row=softmaxRow),
                 while_true=False,
             )
         )
@@ -684,6 +724,7 @@ def fused_mha(
             initial_value=np.zeros(shape=(2,), dtype=np.int32),
             name=f"idx_buffer_pv_{i}",
         )
+        matmulPvCol, matmulPvRow = CalcColRow(i, 4, num_col)
         matmul_pv_workers.append(
             Worker(
                 batched_matmul_pv,
@@ -701,7 +742,8 @@ def fused_mha(
                     idx_buffer_pv,
                 ],
                 stack_size=0xD00,
-                placement=Tile(col=i, row=4),
+                # placement=Tile(col=i, row=4),
+                placement=Tile(col=matmulPvCol, row=matmulPvRow),
                 while_true=False,
             )
         )
@@ -794,13 +836,15 @@ def fused_mha(
                 tg = rt.task_group()
 
                 if number_of_pipelines > 6:
+                    inQCol, inQRow = CalcColRow(4, 0, num_col)
                     rt.fill(
                         inQ.prod(),
                         Q,
                         tap=Q_tiles[
                             2 * head_idx * num_q_block_per_pipeline + q_block_idx * 2
                         ],
-                        placement=Tile(col=4, row=0),
+                        # placement=Tile(col=4, row=0),
+                        placement=Tile(col=inQCol, row=inQRow),
                         task_group=tg,
                     )
                     rt.fill(
@@ -811,35 +855,43 @@ def fused_mha(
                             + q_block_idx * 2
                             + 1
                         ],
-                        placement=Tile(col=4, row=0),
+                        # placement=Tile(col=4, row=0),
+                        placement=Tile(col=inQCol, row=inQRow),
                         task_group=tg,
                     )
                 else:
+                    inQCol, inQRow = CalcColRow(4, 0, num_col)
                     rt.fill(
                         inQ.prod(),
                         Q,
                         tap=Q_tiles[head_idx * num_q_block_per_pipeline + q_block_idx],
-                        placement=Tile(col=4, row=0),
+                        # placement=Tile(col=4, row=0),
+                        placement=Tile(col=inQCol, row=inQRow),
                         task_group=tg,
                     )
 
                 # Thow on bd containing the full K and V in the object fifo, then does it transfer cunks of inKV size at the time?
+                inKCol, inKRow = CalcColRow(5, 0, num_col)
                 rt.fill(
                     inK.prod(),
                     K,
                     tap=K_tiles[head_idx],
-                    placement=Tile(col=5, row=0),
+                    # placement=Tile(col=5, row=0),
+                    placement=Tile(col=inKCol, row=inKRow),
                     task_group=tg,
                 )
+                inVCol, inVRow = CalcColRow(6, 0, num_col)
                 rt.fill(
                     inV.prod(),
                     V,
                     tap=V_tiles[head_idx],
-                    placement=Tile(col=6, row=0),
+                    # placement=Tile(col=6, row=0),
+                    placement=Tile(col=inVCol, row=inVRow),
                     task_group=tg,
                 )
 
                 if number_of_pipelines > 6:
+                    memOCol, memORow = CalcColRow(7, 0, num_col)
                     rt.drain(
                         memO.cons(),
                         O,
@@ -847,7 +899,8 @@ def fused_mha(
                             2 * head_idx * num_q_block_per_pipeline + q_block_idx * 2
                         ],
                         wait=True,
-                        placement=Tile(col=7, row=0),
+                        # placement=Tile(col=7, row=0),
+                        placement=Tile(col=memOCol, row=memORow),
                         task_group=tg,
                     )
                     rt.drain(
@@ -859,26 +912,25 @@ def fused_mha(
                             + 1
                         ],
                         wait=True,
-                        placement=Tile(col=7, row=0),
+                        # placement=Tile(col=7, row=0),
+                        placement=Tile(col=memOCol, row=memORow),
                         task_group=tg,
                     )
                 else:
+                    memOCol, memORow = CalcColRow(7, 0, num_col)
                     rt.drain(
                         memO.cons(),
                         O,
                         tap=O_tiles[head_idx * num_q_block_per_pipeline + q_block_idx],
                         wait=True,
-                        placement=Tile(col=7, row=0),
+                        # placement=Tile(col=7, row=0),
+                        placement=Tile(col=memOCol, row=memORow),
                         task_group=tg,
                     )
 
                 rt.finish_task_group(tg)
 
     # Create the program from the device type and runtime
-    if dev == "npu":
-        dev_ty = NPU1Col1()
-    else:
-        dev_ty = NPU2()
     my_program = Program(dev_ty, rt)
 
     # Place components (assign them resources on the device) and generate an MLIR module

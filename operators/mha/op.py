@@ -55,14 +55,30 @@ class AIEMHA(AIEOperatorBase):
         file_name_base = f"mha_{self.num_heads}h_{kv_heads}kv_{self.seq_len}s_{self.d}d"
 
         # Define source files
-        mm_source = str(self.context.base_dir / "aie_kernels" / "aie2" / "mm.cc")
+        mm_source = str(
+                self.context.base_dir
+                / "aie_kernels" / "aie2"
+                / "mm.cc")
+        mmRow_source = str(
+                self.context.base_dir
+                / "aie_kernels" / "aie2"
+                / "mm_rowmaj.cc")
         softmax_source = str(
-            self.context.base_dir / "aie_kernels" / "aie2" / "softmax.cc"
-        )
-        mha_source = str(self.context.base_dir / "aie_kernels" / "aie2" / "mha.cc")
+                self.context.base_dir
+                / "aie_kernels" / "aie2"
+                / "softmax.cc")
+        mha_source = str(
+                self.context.base_dir
+                / "aie_kernels" / "aie2"
+                / "mha.cc")
         passthrough_source = str(
-            self.context.base_dir / "aie_kernels" / "generic" / "passThrough.cc"
-        )
+                self.context.base_dir
+                / "aie_kernels" / "generic"
+                / "passThrough.cc")
+        lut_source = str(
+                self.context.base_dir
+                / "aie_kernels" / "aie2"
+                / "lut_based_ops.cpp")
 
         # Compile mm.cc (col-major)
         mm_defines_rowmaj = [
@@ -88,6 +104,7 @@ class AIEMHA(AIEOperatorBase):
             import_path=operator_dir / "design.py",
             callback_fn="fused_mha",
             callback_kwargs={
+                "dev": self.context.device_manager.device_str(),
                 "heads": self.num_heads,
                 "S_q": self.seq_len,
                 "S_kv": self.seq_len,
@@ -110,36 +127,42 @@ class AIEMHA(AIEOperatorBase):
                     f"mha_kernels.a",
                     depends=[
                         KernelObjectArtifact.new(
+                            f"lut_based_ops.o",
+                            depends=[SourceArtifact.new(lut_source)]
+                        ),
+                        KernelObjectArtifact.new(
                             f"mha_mm.o",
                             extra_flags=mm_defines_colmaj,
-                            depends=[SourceArtifact.new(mm_source)],
+                            depends=[SourceArtifact.new(mm_source)]
                         ),
                         KernelObjectArtifact.new(
                             f"mha_mm_rowmaj.o",
                             extra_flags=mm_defines_rowmaj,
-                            depends=[SourceArtifact.new(mm_source)],
-                            rename_symbols=mm_rename_symbols,
+                            depends=[SourceArtifact.new(mmRow_source)],
+                            # rename_symbols=mm_rename_symbols,
                         ),
                         KernelObjectArtifact.new(
-                            "mha_softmax.o",
-                            depends=[SourceArtifact.new(softmax_source)],
+                            f"mha_softmax.o",
+                            depends=[SourceArtifact.new(softmax_source)]
                         ),
                         KernelObjectArtifact.new(
-                            "mha_mha.o", depends=[SourceArtifact.new(mha_source)]
+                            f"mha_mha.o",
+                            depends=[SourceArtifact.new(mha_source)]
                         ),
                         KernelObjectArtifact.new(
-                            "mha_passThrough.o",
+                            f"mha_passThrough.o",
                             extra_flags=["-DBIT_WIDTH=16"],
-                            depends=[SourceArtifact.new(passthrough_source)],
+                            depends=[SourceArtifact.new(passthrough_source)]
                         ),
                     ],
                 ),
             ],
-            extra_flags=["--dynamic-objFifos"],
+            extra_flags=["--dynamic-objFifos", "--link"],
         )
 
         insts_artifact = InstsBinArtifact.new(
-            f"mha.bin", depends=[mlir_artifact], extra_flags=["--dynamic-objFifos"]
+            f"mha.bin", depends=[mlir_artifact],
+            extra_flags=["--dynamic-objFifos"]
         )
 
         self.xclbin_artifact = xclbin_artifact
