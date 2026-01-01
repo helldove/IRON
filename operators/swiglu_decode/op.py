@@ -48,11 +48,12 @@ class AIESwiGLUDecode(AIEOperatorBase):
     def set_up_artifacts(self):
         artifacts = []
         device_str = self.context.device_manager.device_str()
+        max_columns = 4
 
         gemv_1 = AIEGEMV(
             M=self.hidden_dim,
             K=self.embedding_dim,
-            num_aie_columns=8,
+            num_aie_columns=max_columns,
             tile_size=1,
         )
         self.gemv_1 = gemv_1
@@ -70,7 +71,7 @@ class AIESwiGLUDecode(AIEOperatorBase):
 
         silu = AIESiLU(
             size=self.hidden_dim,
-            num_aie_columns=8,
+            num_aie_columns=max_columns,
             num_channels=2,
             tile_size=self.hidden_dim // 16,
         )
@@ -88,7 +89,7 @@ class AIESwiGLUDecode(AIEOperatorBase):
 
         eltwise_mul = AIEElementwiseMul(
             size=self.hidden_dim,
-            num_aie_columns=8,
+            num_aie_columns=max_columns,
             num_channels=2,
             tile_size=self.hidden_dim // 8,
         )
@@ -109,7 +110,7 @@ class AIESwiGLUDecode(AIEOperatorBase):
         gemv_2 = AIEGEMV(
             M=self.embedding_dim,
             K=self.hidden_dim,
-            num_aie_columns=8,
+            num_aie_columns=max_columns,
             tile_size=1,
         )
         self.gemv_2 = gemv_2
