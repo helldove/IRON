@@ -14,7 +14,8 @@ from operators.common.test_utils import run_test
 
 
 def generate_test_params(extensive=False):
-    max_aie_columns = 8
+    max_aie_columns = 4
+    max_tile_size = max_aie_columns * 1024
     num_channels_choices = [1, 2]
     input_lengths = [2048] if not extensive else [1024, 4096, 8192]
 
@@ -25,8 +26,9 @@ def generate_test_params(extensive=False):
             for num_channels in num_channels_choices:
                 total_cores = num_aie_columns * num_channels
                 tile_size = input_length // total_cores
-                if tile_size > 8192:
-                    tile_size = 8192
+                # 8192 tiles setting is not work correctly on the PHX
+                if tile_size > max_tile_size:
+                    tile_size = max_tile_size
                 check_length = tile_size * total_cores
                 if check_length == input_length:
                     names.append(

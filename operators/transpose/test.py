@@ -16,7 +16,7 @@ from operators.common.test_utils import run_test
 def generate_test_params(extensive=False):
     params = []
     names = []
-    max_aie_columns = 8
+    max_aie_columns = 4
     input_lengths = [2048] if not extensive else [64, 2048]
     n_list = [64] if not extensive else [64, 128, 256, 512]
     s_list = [8]

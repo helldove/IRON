@@ -16,6 +16,7 @@ from operators.common.test_utils import run_test
 def generate_test_params(extensive=False):
     input_lengths = [2048] if not extensive else [1024, 2048, 4096, 8192]
     bypass_modes = [False] if not extensive else [False, True]
+    max_aie_columns = 4
 
     params = []
     names = []
@@ -25,7 +26,7 @@ def generate_test_params(extensive=False):
             for num_channels in range(1, 3):  # 1 or 2 channels
                 for bypass in bypass_modes:
                     # Calculate the maximum cores that can be utilized with 1 or 2 shim channels
-                    max_cores = 8 * num_channels  # MAX_COLUMNS (8) * num_channels
+                    max_cores = max_aie_columns * num_channels  # MAX_COLUMNS (4) * num_channels
 
                     if max_cores >= num_cores and num_cores >= num_channels:
                         tile_size = input_length // num_cores

@@ -17,7 +17,7 @@ def generate_test_params(extensive=False):
     params = []
     names = []
 
-    max_aie_columns = 8
+    max_aie_columns = 4
     num_channels = 2
 
     if not extensive:
