@@ -6,7 +6,20 @@
 #include <aie_api/aie.hpp>
 #include <stdint.h>
 
+ 
+#define SM_VEC_LEN 16   // 32
+#define log2e 1.4453125 // 1.44269504089
+
 using namespace aie;
+
+
+static v16bfloat16 CalcExpBf16(v16bfloat16 x) {
+  return to_v16bfloat16(getExpBf16Lut(x));
+}
+
+static bfloat16 GetInvBf16(float x) {
+  return getInvBf16Lut(x);
+}
 
 void softmax_simple_bf16(bfloat16 *restrict input_vector, bfloat16 *restrict output_vector, const int32_t vector_size)
 {
@@ -37,7 +50,8 @@ void softmax_simple_bf16(bfloat16 *restrict input_vector, bfloat16 *restrict out
     exp_val_accum = aie::zeros<accfloat, 16>();
     for (int i = 0; i < elem_iters; i++) {
         input_bf16 = *it_exp_in++;
-        exp_val = to_v16bfloat16(getExpBf16(input_bf16));
+        // exp_val = to_v16bfloat16(getExpBf16(input_bf16));
+        exp_val = CalcExpBf16(input_bf16);
         exp_val_accum = add(exp_val_accum, exp_val);
         *it_exp_out++ = exp_val;
     }

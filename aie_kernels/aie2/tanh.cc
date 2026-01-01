@@ -23,7 +23,7 @@ void tanh_bf16_vectorized(bfloat16 *restrict input_vector, bfloat16 *restrict ou
         aie::vector<bfloat16, 16> input = *it_in++;
 
         // Compute tanh approximation
-        aie::vector<bfloat16, 16> tanh_x = getTanhBf16(input);
+        aie::vector<bfloat16, 16> tanh_x = getTanhBf16Lut(input);
 
         // Store output vector
         *it_out++ = tanh_x;

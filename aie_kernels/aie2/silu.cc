@@ -26,7 +26,7 @@ void silu_tanh_approx_bf16(bfloat16 *restrict input_vector, bfloat16 *restrict o
 
         // Compute tanh approximation
         aie::vector<bfloat16, 16> half_x = aie::mul(input, register_0_5);
-        aie::vector<bfloat16, 16> tanh_half_x = getTanhBf16(half_x);
+        aie::vector<bfloat16, 16> tanh_half_x = getTanhBf16Lut(half_x);
         auto tanh_half_x_approx = aie::add(tanh_half_x, register_1);
         aie::vector<bfloat16, 16> sigmoid_approx = aie::mul(tanh_half_x_approx, register_0_5);
         // Compute output: x * tanh_approx

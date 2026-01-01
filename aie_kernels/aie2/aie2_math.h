@@ -21,7 +21,7 @@
 #include <stdlib.h>
 
 // fast inverse square root implementation from Quake III Arena
-inline __attribute__((always_inline)) float invsqrt(float in)
+static inline __attribute__((always_inline)) float invsqrt(float in)
 {
     float x2 = in * 0.5f;
     float y = in;
