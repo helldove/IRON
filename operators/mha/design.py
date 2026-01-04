@@ -275,8 +275,9 @@ def fused_mha(
 
     def CalcColRow(col, row, num_col):
         index = row * 8 + col
-        recalc_col = index // num_col
-        recalc_row = int(index / num_col)
+        recalc_col = index % num_col
+        recalc_row = index // num_col
+        assert (recalc_col < 4) and (recalc_row < 6), f"Test!! num_col: {num_col}, orig col: {col}, orig row: {row}, index: {index}, recalc_col: {recalc_col}, recalc_row: {recalc_row}"
         return recalc_col, recalc_row
 
     # AIE-array data movement with object fifos

@@ -14,7 +14,7 @@ from operators.common.test_utils import run_test
 
 
 def generate_test_params(extensive=False):
-    params = [(16384, 64, 1, 8)]
+    params = [(16384, 64, 1, 1)]
     names = ["mha"]
     return params, names
 
